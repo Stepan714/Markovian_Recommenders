@@ -1,15 +1,8 @@
-# Core data processing
 polars>=0.19
 numpy>=1.23
 pandas>=1.5
-
-# Dataset access
 datasets>=2.14
-
-# Parallel evaluation
 joblib>=1.3
 tqdm>=4.65
 tqdm-joblib>=0.0.5
-
-# Optional (used in original notebook environment)
 python-dateutil>=2.8

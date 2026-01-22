@@ -33,6 +33,7 @@ Three weighting schemes are supported:
 
 ### Time decay (DecayPop)
 Exponential decay based on timestamps:
+
 $$
 w_k \propto \exp\left(-\ln(2)\cdot \frac{t_1 - t_k}{h}\right)
 $$
@@ -47,6 +48,7 @@ $$
 
 ### Order-based linear decay
 Linearly decreasing weights with depth:
+
 $$
 w_k \propto 1 - (k-1)\frac{1-\lambda}{K-1}
 $$

@@ -23,7 +23,7 @@ states instead of using only the last interaction.
 
 ## History Weighting (Decay)
 
-Given the last `DEPTH` states \(\{(s_k, t_k)\}\), scores are aggregated as
+Given the last `DEPTH` states ({(s_k, t_k)}), scores are aggregated as
 
 $$
 \text{score}(i) = \sum_k w_k \, P(i \mid s_k)
@@ -34,7 +34,7 @@ Three weighting schemes are supported:
 ### Time decay (DecayPop)
 Exponential decay based on timestamps:
 $$
-w_k ~ \exp\left(-\ln(2)\cdot \frac{t_1 - t_k}{h}\right)
+w_k \propto \exp\left(-\ln(2)\cdot \frac{t_1 - t_k}{h}\right)
 $$
 with half-life `h = 21.6` hours (as used in the paper).
 
@@ -48,7 +48,7 @@ $$
 ### Order-based linear decay
 Linearly decreasing weights with depth:
 $$
-w_k ~ 1 - (k-1)\frac{1-\lambda}{K-1}
+w_k \propto 1 - (k - 1)\frac{1 - \lambda}{K-1}
 $$
 
 ---

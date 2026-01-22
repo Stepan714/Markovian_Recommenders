@@ -48,7 +48,7 @@ $$
 ### Order-based linear decay
 Linearly decreasing weights with depth:
 $$
-w_k \propto 1 - (k - 1)\frac{1 - \lambda}{K-1}
+w_k \propto 1 - (k-1)\frac{1-\lambda}{K-1}
 $$
 
 ---

@@ -40,8 +40,9 @@ with half-life `h = 21.6` hours (as used in the paper).
 
 ### Order-based exponential decay
 Time-agnostic positional decay:
+
 $$
-w_k ~ \gamma^{k-1}
+w_k \propto \gamma^{k-1}
 $$
 
 ### Order-based linear decay

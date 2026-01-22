@@ -1,4 +1,3 @@
-# run_experiment.py
 from __future__ import annotations
 
 from typing import Literal
@@ -70,7 +69,6 @@ def ndcg_score(y_true, y_pred, k=10):
     return dcg / idcg if idcg > 0 else 0.0
 
 def build_result_from_mh(mh: MarkovChainPolars) -> pl.DataFrame:
-    # mapping узлов
     Map = pl.DataFrame({
         "node_id": list(mh.map_name_nodes.keys()),
         "node_name": list(mh.map_name_nodes.values()),
@@ -116,7 +114,7 @@ def build_result_from_mh(mh: MarkovChainPolars) -> pl.DataFrame:
     )
 
     result = result.with_columns(
-        p=pl.col("Вероятность").str.replace("%", "").cast(pl.Float64) / 100.0
+        p=pl.col("Probability").str.replace("%", "").cast(pl.Float64) / 100.0
     )
 
     result = result.with_columns([
@@ -301,7 +299,7 @@ def evaluate_once_batched(
         return r_sum, d_sum, n_sum
 
     if show_progress:
-        ctx = tqdm_joblib(tqdm(total=len(batches), desc=f"Батчи по {batch_size} пользователей"))
+        ctx = tqdm_joblib(tqdm(total=len(batches), desc=f"Batches like {batch_size} users"))
     else:
         class _Dummy:
             def __enter__(self): return None

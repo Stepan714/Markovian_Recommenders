@@ -1,4 +1,3 @@
-# state_weights.py
 from __future__ import annotations
 from typing import Literal
 import math
@@ -21,10 +20,6 @@ def make_state_weights(
 
     normalize: bool = True,
 ) -> tuple[list[str], list[float]]:
-    """
-    Возвращает (states, weights) по state_i.
-    state_0 — самое свежее (при reverse_states=True в eval).
-    """
     states, ts_list = [], []
     i = 0
     while True:
@@ -41,7 +36,6 @@ def make_state_weights(
     if not states:
         return [], []
 
-    # --- raw weights ---
     if decay_mode == "time":
         last_ts = map_user_state.get("last_timestamp")
         if last_ts is None or half_life_hours <= 0:

@@ -117,5 +117,4 @@ MIN_W = 0.05
 
 ## License
 
-Released for research use.  
-If you use this code in academic work, please cite the accompanying paper.
+Released for research.

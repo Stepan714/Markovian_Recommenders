@@ -33,7 +33,7 @@ Three weighting schemes are supported:
 
 ### Time decay (DecayPop)
 Exponential decay based on timestamps:
-$w_k \propto \exp\!\left(-\ln(2)\cdot \frac{t_1 - t_k}{h}\right)$
+$w_k \propto \exp\left(-\ln(2)\cdot \frac{t_1 - t_k}{h}\right)$
 with half-life `h = 21.6` hours (as used in the paper).
 
 ### Order-based exponential decay

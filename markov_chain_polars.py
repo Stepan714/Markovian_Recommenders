@@ -3,7 +3,6 @@ from itertools import product
 
 class MarkovChainPolars:
     def __init__(self, name=None, data=None, struct=None, time_column=None, users_id_column=None):
-        # struct, for example (действие, id_song) = (название поля, название поля айдишника)
         self.NAME = name # String
         self.data = data # polars DataFrame
         self.struct = struct # tuple
@@ -22,7 +21,7 @@ class MarkovChainPolars:
 
     def preprocessing_data(self):
         if self.data is None:
-            raise ValueError("Подан пустой датасет")
+            raise ValueError("Empty dataset")
 
         self.data = self.data.sort([self.users_id_column, self.time_column])
 
@@ -51,30 +50,29 @@ class MarkovChainPolars:
         if self.data is None or not self.struct:
             return
 
-        START_NODE = "START"  # Добавляем специальную стартовую ноду
-        self.map_name_nodes[-1] = START_NODE  # Используем -1 как ID для стартовой ноды
+        START_NODE = "START"
+        self.map_name_nodes[-1] = START_NODE
         self.count_nodes += 1
 
-        self.markov_chain = {  # Инициализация цепи с учетом стартовой ноды
+        self.markov_chain = {
             f'id_node_{i}': {}
-            for i in range(-1, self.count_nodes - 1)  # Включаем -1 (старт) и обычные ноды
+            for i in range(-1, self.count_nodes - 1)
         }
 
-        self.node_name_to_id = {v: k for k, v in self.map_name_nodes.items()}  # Создаем обратный маппинг для быстрого поиска
+        self.node_name_to_id = {v: k for k, v in self.map_name_nodes.items()}
 
-        # Группируем по пользователям и обрабатываем каждую группу
         grouped = self.data.group_by(self.users_id_column)
         
         for group in grouped:
             user_data = group
-            prev_node = f'id_node_{-1}' # Всегда начинаем со стартовой ноды
+            prev_node = f'id_node_{-1}'
 
             for row in user_data.iter_rows(named=True):
                 current_values = [str(row[col]) for col in self.struct]
                 current_node_key = "_".join(current_values)
                 current_node_id = self.node_name_to_id[current_node_key]
 
-                if f'id_node_{current_node_id}' in self.markov_chain[prev_node]:  # Добавляем переход
+                if f'id_node_{current_node_id}' in self.markov_chain[prev_node]:
                     self.markov_chain[prev_node][f'id_node_{current_node_id}'] += 1
                 else:
                     self.markov_chain[prev_node][f'id_node_{current_node_id}'] = 1
@@ -85,57 +83,43 @@ class MarkovChainPolars:
         for source, targets in self.markov_chain.items():
             for target, count in targets.items():
                 transitions.append({
-                    'Из': source,
-                    'В': target,
-                    'Переходы': count,
-                    'Вероятность': f"{count / sum(targets.values()):.8%}"
+                    'From': source,
+                    'To': target,
+                    'Transitions': count,
+                    'Probability': f"{count / sum(targets.values()):.8%}"
                 })
 
-        self.P = pl.DataFrame(transitions).sort('Переходы', descending=True)        
+        self.P = pl.DataFrame(transitions).sort('Transitions', descending=True)        
 
         return
 
     def build_markov_chain_optimized(self):
-        """
-        Оптимизированная версия построения марковской цепи с использованием Polars.
-        Использует оконные функции для нахождения переходов между состояниями.
-        """
-        # Если данные отсутствуют или структура не задана, прекращаем построение
         if self.data is None or not self.struct:
             return
 
-        # Гарантируем корректный порядок событий: сортируем по пользователю и времени
         self.data = self.data.sort([self.users_id_column, self.time_column])
 
-        # Специальная стартовая нода
         START_NODE = "START"
 
-        # Переинициализируем маппинг: -1 соответствует START
         self.map_name_nodes = { -1: START_NODE }
 
-        # Создаем колонку текущего состояния путем конкатенации всех колонок из struct
         data_with_states = self.data.with_columns(
             pl.concat_str([pl.col(col) for col in self.struct], separator="_").alias("current_state")
         )
 
-        # Определяем уникальные состояния и их числовые идентификаторы
         unique_states = data_with_states["current_state"].unique().to_list()
         state_to_id = {state: idx for idx, state in enumerate(unique_states)}
 
-        # Заполняем обратный маппинг: id -> name
         for state, node_id in state_to_id.items():
             self.map_name_nodes[node_id] = state
 
-        # Общее количество узлов (+1 для START)
         self.count_nodes = len(state_to_id) + 1
 
-        # Создаем DataFrame-мэппинг для добавления current_state_id
         mapping_df = pl.DataFrame({
             "current_state": list(state_to_id.keys()),
             "current_state_id": list(state_to_id.values()),
         })
 
-        # Присоединяем ID состояния к основным данным
         data_with_states = (
             data_with_states
             .join(mapping_df, on="current_state", how="left")
@@ -144,7 +128,6 @@ class MarkovChainPolars:
             )
         )
 
-        # 1. Переходы внутри цепочек пользователя
         transitions = (
             data_with_states
             .group_by(self.users_id_column)
@@ -163,7 +146,6 @@ class MarkovChainPolars:
             ])
         )
 
-        # 2. Переходы от START: первая точка входа в последовательность каждого пользователя
         start_transitions = (
             data_with_states
             .group_by(self.users_id_column)
@@ -179,10 +161,8 @@ class MarkovChainPolars:
             ])
         )
 
-        # 3. Объединяем оба типа переходов
         all_transitions = pl.concat([transitions, start_transitions])
 
-        # 4. Создаем финальную таблицу: суммарные переходы и вероятности
         self.P = (
             all_transitions
             .with_columns([
@@ -190,32 +170,24 @@ class MarkovChainPolars:
                 pl.format("id_node_{}", pl.col("current_state_id")).alias("to_node_id")
             ])
             .group_by(["from_node_id", "to_node_id"])
-            .agg(pl.sum("count").alias("Переходы"))
+            .agg(pl.sum("count").alias("Transitions"))
             .with_columns([
-                ((pl.col("Переходы") / pl.col("Переходы").sum().over("from_node_id")) * 100.0).round(8).alias("_prob")
+                ((pl.col("Transitions") / pl.col("Transitions").sum().over("from_node_id")) * 100.0).round(8).alias("_prob")
             ])
             .with_columns(
-                pl.concat_str([pl.col("_prob").cast(pl.Utf8), pl.lit("%")]).alias("Вероятность")
+                pl.concat_str([pl.col("_prob").cast(pl.Utf8), pl.lit("%")]).alias("Probability")
             )
             .drop("_prob")
-            .sort("Переходы", descending=True)
+            .sort("Transitions", descending=True)
         )
 
-        # Обратный маппинг имени узла в id
         self.node_name_to_id = {v: k for k, v in self.map_name_nodes.items()}
 
         return
 
     def filter_by_time_range(self, start_time: int, end_time: int):
-        """
-        Удаляет строки из self.data, где время не входит в указанный интервал.
-        Время указывается в секундах (целые числа).
-        
-        :param start_time: нижняя граница времени (включительно)
-        :param end_time: верхняя граница времени (включительно)
-        """
         if self.data is None or self.time_column not in self.data.columns:
-            raise ValueError("Нет данных или отсутствует колонка времени.")
+            raise ValueError("There is no data or the time column is missing.")
     
         before_count = self.data.height
         self.data = self.data.filter(
@@ -224,16 +196,14 @@ class MarkovChainPolars:
         )
         after_count = self.data.height
     
-        print(f"Отфильтровано по времени: оставлено {after_count} из {before_count} записей "
-              f"(границы: {start_time} - {end_time})")
+        print(f"Filtered by time: left {after_count} from {before_count} raws "
+              f"(borders: {start_time} - {end_time})")
 
     def show_markov_chain(self, visualize=True, top_n=10):
-        # Красивый табличный вывод
-        print(f"\nМарковская цепь '{self.NAME}' (первые {top_n} переходов):")
+        print(f"\nMarkov Chain '{self.NAME}' (first {top_n} transitions):")
         print("=" * 60)
 
-        # Создаем DataFrame для красивого отображения
         if hasattr(self, 'P') and self.P is not None:
             print(self.P.head(top_n))
         else:
-            print("Марковская цепь еще не построена")
+            print("The Markov chain has not been built yet")

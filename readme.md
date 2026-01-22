@@ -34,20 +34,20 @@ Three weighting schemes are supported:
 ### Time decay (DecayPop)
 Exponential decay based on timestamps:
 $$
-w_k \sim \exp\!\left(-\ln(2)\cdot \frac{t_1 - t_k}{h}\right)
+w_k \propto \exp\!\left(-\ln(2)\cdot \frac{t_1 - t_k}{h}\right)
 $$
 with half-life `h = 21.6` hours (as used in the paper).
 
 ### Order-based exponential decay
 Time-agnostic positional decay:
 $$
-w_k \sim \gamma^{k-1}
+w_k \propto \gamma^{k-1}
 $$
 
 ### Order-based linear decay
 Linearly decreasing weights with depth:
 $$
-w_k \sim 1 - (k-1)\frac{1-\lambda}{K-1}
+w_k \propto 1 - (k-1)\frac{1-\lambda}{K-1}
 $$
 
 ---

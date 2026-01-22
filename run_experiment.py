@@ -24,7 +24,6 @@ INTERACTION = "multi_event"
 N = 10
 DEPTH = 40
 
-# поправки
 DECAY_MODE: Literal["time", "order_exp", "order_linear"] = "time"
 HALF_LIFE_HOURS = 24 * 0.9
 TIME_UNIT: Literal["s", "ms"] = "s"
@@ -41,8 +40,6 @@ SHOW_PROGRESS = True
 REVERSE_STATES = True
 # ==================================================
 
-
-# ===== split (как в ноутбуке) =====
 def train_val_test_polars(
     df: pl.DataFrame,
     test_timestamp: int,
@@ -63,7 +60,6 @@ def train_val_test_polars(
     return train, validation, test
 
 
-# ===== NDCG (как у тебя) =====
 def ndcg_score(y_true, y_pred, k=10):
     y_pred = list(map(int, y_pred[:k]))
     y_true = set(map(int, y_true))
@@ -73,8 +69,6 @@ def ndcg_score(y_true, y_pred, k=10):
     idcg = sum(rel / np.log2(idx + 2) for idx, rel in enumerate(ideal_rels))
     return dcg / idcg if idcg > 0 else 0.0
 
-
-# ===== строим transitions result (КЛЮЧЕВО: как в ноутбуке через mh.P) =====
 def build_result_from_mh(mh: MarkovChainPolars) -> pl.DataFrame:
     # mapping узлов
     Map = pl.DataFrame({
@@ -85,7 +79,6 @@ def build_result_from_mh(mh: MarkovChainPolars) -> pl.DataFrame:
         node_id_str=pl.format("id_node_{}", pl.col("node_id")),
     )
 
-    # join к mh.P
     result = (
         mh.P
         .join(
@@ -98,9 +91,7 @@ def build_result_from_mh(mh: MarkovChainPolars) -> pl.DataFrame:
         )
     )
 
-    # распарсить node_name -> event_type / item_id
     def split_event_item(col: str, prefix: str):
-        # если нет "_" (например START) — item_id пустой
         return [
             pl.when(pl.col(col).str.contains("_"))
               .then(pl.col(col).str.split_exact("_", 1).struct.field("field_0"))
@@ -118,19 +109,16 @@ def build_result_from_mh(mh: MarkovChainPolars) -> pl.DataFrame:
         split_event_item("to_node_name", "to")
     )
 
-    # START узел (как в ноутбуке)
     result = result.with_columns(
         from_item_id=pl.when(pl.col("from_event_type") == "START")
                        .then(pl.lit(""))
                        .otherwise(pl.col("from_item_id"))
     )
 
-    # вероятность из "Вероятность" -> p
     result = result.with_columns(
         p=pl.col("Вероятность").str.replace("%", "").cast(pl.Float64) / 100.0
     )
 
-    # key / key_to (как в ноутбуке)
     result = result.with_columns([
         pl.col("from_event_type").cast(pl.Utf8),
         pl.col("from_item_id").cast(pl.Utf8),
@@ -140,7 +128,6 @@ def build_result_from_mh(mh: MarkovChainPolars) -> pl.DataFrame:
         pl.concat_str([pl.col("to_event_type"), pl.lit("_"), pl.col("to_item_id")]).alias("key_to"),
     ])
 
-    # финальные колонки, которые ждёт рекомендатор
     result = (
         result
         .select(["key", "key_to", "to_event_type", "to_item_id", "p"])
@@ -151,7 +138,6 @@ def build_result_from_mh(mh: MarkovChainPolars) -> pl.DataFrame:
     return result
 
 
-# ===== рекомендатор: только веса меняются =====
 def recomendation_system_weighted(
     N: int,
     map_user_state: dict,
@@ -205,7 +191,6 @@ def recomendation_system_weighted(
     return sample
 
 
-# ===== оценка батчами (твоя логика) =====
 def evaluate_once_batched(
     result_df: pl.DataFrame,
     test_lazy: pl.LazyFrame,
@@ -345,11 +330,9 @@ def main():
     events = dataset.interaction(INTERACTION)
     df = pl.from_pandas(events.to_pandas())
 
-    # split timestamps (как в ноутбуке)
     HOUR_SECONDS = 60 * 60
     DAY_SECONDS = 24 * HOUR_SECONDS
 
-    # В ноутбуке было так:
     train, val, test = train_val_test_polars(
         df,
         26000000 - DAY_SECONDS,
@@ -368,10 +351,8 @@ def main():
     mh.preprocessing_data()
     mh.build_markov_chain_optimized()
 
-    # КЛЮЧ: строим result из mh.P как в ноутбуке
     result = build_result_from_mh(mh)
 
-    # ===== Подготовка цепочек (как у тебя) =====
     test_lazy = test.lazy()
     train_lazy = train.lazy()
     result_lazy = result.lazy()
